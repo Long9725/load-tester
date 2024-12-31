@@ -1,4 +1,5 @@
-import { Executor } from '@load-tester/domains/load-test/domain/entity/loadTestTool';
+import { VirtualUserExecutor } from '@load-tester/domains/load-test/domain/entity/virtualUserExecutor';
+import { URL } from 'url';
 
 /**
  * {
@@ -28,19 +29,53 @@ export interface ScenarioStage {
 }
 
 export interface ScenarioConfig {
-  executor: Executor;
+  executor?: VirtualUserExecutor;
   vus?: number;
   duration?: string;
   startVUs?: number;
   stages?: ScenarioStage[];
   startTime?: string; // startTime: 이 시나리오를 언제부터 시작할지 (초 단위 시점); "15s" → 시나리오_login 이 끝나는 시점(15초 후)에 이 시나리오를 시작
-  exec: string; // exec: 부하 테스트 시나리오 실행 시 사용할 함수명
+  exec?: string; // exec: 부하 테스트 시나리오 실행 시 사용할 함수명
 }
 
 export type Scenarios = Record<string, ScenarioConfig>;
 
 // K6 옵션 전체 인터페이스
-export interface LoadTestOptions {
-  thresholds: Thresholds;
+export interface LoadTestOption {
+  baseUrl: URL;
+  thresholds?: Thresholds;
   scenarios: Scenarios;
+  getEnvironments(): string[];
+}
+
+/**
+ * 부하 테스트 도구 종류를 열거형(enum)으로 정의
+ * 예: K6, Gatling, Locust 등
+ */
+export enum LoadTestTool {
+  K6 = 'K6',
+  // GATLING = 'GATLING',
+  // LOCUST = 'LOCUST',
+  // 필요하면 더 추가...
+}
+
+export class K6Option implements LoadTestOption {
+  public readonly baseUrl: URL;
+  public readonly thresholds: Thresholds;
+  public readonly scenarios: Scenarios;
+  constructor(options: Partial<K6Option>) {
+    this.baseUrl = options.baseUrl;
+    this.thresholds = options.thresholds || {};
+    this.scenarios = options.scenarios || {};
+  }
+  getEnvironments(): string[] {
+    return [
+      '-e',
+      `BASE_URL=${this.baseUrl}`,
+      '-e',
+      `VUS=${this.scenarios.default.vus}`,
+      '-e',
+      `DURATION=${this.scenarios.default.duration}`,
+    ];
+  }
 }
