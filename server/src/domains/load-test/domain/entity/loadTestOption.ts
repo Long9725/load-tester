@@ -28,6 +28,13 @@ export interface ScenarioStage {
   target: number;
 }
 
+export interface ScenarioEnvironment {
+  url: URL; // 호출할 URL (예: 'http://localhost:3000/api/login')
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; // HTTP 메서드 제한
+  body?: string; // 요청 바디 (예: JSON 문자열)
+  headers?: Record<string, string>; // 헤더 (키-값 쌍)
+}
+
 export interface ScenarioConfig {
   executor?: VirtualUserExecutor;
   vus?: number;
@@ -35,21 +42,21 @@ export interface ScenarioConfig {
   startVUs?: number;
   stages?: ScenarioStage[];
   startTime?: string; // startTime: 이 시나리오를 언제부터 시작할지 (초 단위 시점); "15s" → 시나리오_login 이 끝나는 시점(15초 후)에 이 시나리오를 시작
-  exec?: string; // exec: 부하 테스트 시나리오 실행 시 사용할 함수명
+  env: ScenarioEnvironment;// exec: 부하 테스트 시나리오 실행 시 사용할 함수명
 }
 
 export type Scenarios = Record<string, ScenarioConfig>;
 
 // K6 옵션 전체 인터페이스
 export interface LoadTestOption {
-  baseUrl: URL;
   thresholds?: Thresholds;
   scenarios: Scenarios;
-  getEnvironments(): string[];
+  getConfigJson(): string;
+  getScenariosEnv(): Record<string, ScenarioEnvironment>;
 }
 
 /**
- * 부하 테스트 도구 종류를 열거형(enum)으로 정의
+ * 부하 테스트 도구 종류를 열거형(enum)으로  정의
  * 예: K6, Gatling, Locust 등
  */
 export enum LoadTestTool {
@@ -59,23 +66,59 @@ export enum LoadTestTool {
   // 필요하면 더 추가...
 }
 
+/**
+ * LoadTestOptionFactory
+ * - loadTestTool(enum)과 필요한 정보(타입/시나리오명 등)를 받아
+ *   해당하는 LoadTestOption 구현체를 생성/반환
+ */
+export class LoadTestOptionFactory {
+  static getInstance(
+    tool: LoadTestTool,
+    option: Partial<LoadTestOption>,
+  ): LoadTestOption {
+    switch (tool) {
+      case LoadTestTool.K6:
+        return new K6Option(option);
+
+      default:
+        throw new Error(`Unsupported tool: ${tool}`);
+    }
+  }
+}
+
 export class K6Option implements LoadTestOption {
-  public readonly baseUrl: URL;
   public readonly thresholds: Thresholds;
   public readonly scenarios: Scenarios;
   constructor(options: Partial<K6Option>) {
-    this.baseUrl = options.baseUrl;
     this.thresholds = options.thresholds || {};
     this.scenarios = options.scenarios || {};
   }
-  getEnvironments(): string[] {
-    return [
-      '-e',
-      `BASE_URL=${this.baseUrl}`,
-      '-e',
-      `VUS=${this.scenarios.default.vus}`,
-      '-e',
-      `DURATION=${this.scenarios.default.duration}`,
-    ];
+
+  // 시나리오 정보를 포함하지만 env 필드는 제외하고 반환
+  getConfigJson(): string {
+    const configWithoutEnv = JSON.parse(JSON.stringify(this)) ;
+
+    // 각 시나리오에서 env 필드 제외
+    Object.keys(configWithoutEnv.scenarios).forEach(scenarioName => {
+      const scenario = configWithoutEnv.scenarios[scenarioName];
+      if (scenario.env) {
+        // env를 제외한 시나리오 객체만 유지
+        scenario.env = undefined;
+      }
+    });
+
+    return JSON.stringify(configWithoutEnv); // JSON 형태로 반환
+  }
+
+  // 시나리오 이름과 env를 매핑하여 JSON으로 반환
+  getScenariosEnv(): Record<string, ScenarioEnvironment> {
+    const envMapping: Record<string, ScenarioEnvironment> = {};
+
+    // 각 시나리오의 env를 추출하여 매핑
+    Object.keys(this.scenarios).forEach(scenarioName => {
+      envMapping[scenarioName] = this.scenarios[scenarioName].env;
+    });
+
+    return envMapping; // JSON 형태로 반환
   }
 }

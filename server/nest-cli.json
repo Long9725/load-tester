@@ -5,7 +5,7 @@
   "compilerOptions": {
     "assets": [
       {
-        "include": "applications/out/k6/scripts/*.js",
+        "include": "applications/out/k6/config/*.js",
         "outDir": "dist/assets/load-test-scripts"
       }
     ],

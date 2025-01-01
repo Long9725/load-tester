@@ -56,8 +56,12 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": "./",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@load-tester/(.*)$": "<rootDir>/src/$1",
+      "^@src/(.*)$": "<rootDir>/src/$1"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
