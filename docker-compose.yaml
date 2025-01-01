@@ -1,0 +1,20 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:1.11.8
+    container_name: influxdb
+    environment:
+      INFLUXDB_DB: k6_db
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: password
+      INFLUXDB_USER: k6_user
+      INFLUXDB_USER_PASSWORD: k6_password
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    restart: unless-stopped
+
+volumes:
+  influxdb-data:
+    driver: local

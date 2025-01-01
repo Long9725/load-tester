@@ -6,7 +6,7 @@
     "assets": [
       {
         "include": "applications/out/k6/config/*.js",
-        "outDir": "dist/assets/load-test-scripts"
+        "outDir": "dist/assets/load-test"
       }
     ],
     "watchAssets": true,
