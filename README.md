@@ -41,31 +41,54 @@ curl --location 'http://localhost:3000/loadTest/run' \
     "option": {
         "scenarios": {
             "loginScenario": {
-            "executor": "constant-vus",
-            "vus": 1,
-            "duration": "60s",
-            "env": {
-                "url": "http://host.docker.internal:3000/loadTest/test",
-                "method": "GET",
-                "headers": {
-                "Content-Type": "application/json"
+                "executor": "constant-vus",
+                "vus": 20000,
+                "duration": "60s",
+                "env": {
+                    "url": "http://host.docker.internal:3000/loadTest/test",
+                    "method": "GET"
+                },
+                "data": {
+                    "iterationMode": "linear",
+                    "headers": [
+                        {
+                            "Content-Type": "application/json"
+                        }
+                    ],
+                    "body": [
+                        {
+                            "hello": "world"
+                        }
+                    ]
                 }
-            }
             },
             "dataFetchScenario": {
-            "executor": "constant-vus",
-            "vus": 1,
-            "duration": "60s",
-            "env": {
-                "url": "http://host.docker.internal:3000/loadTest/test",
-                "method": "POST",
-                "body": {
-                    "hello": "world"
+                "executor": "constant-vus",
+                "vus": 20000,
+                "duration": "60s",
+                "env": {
+                    "url": "http://host.docker.internal:3000/loadTest/test",
+                    "method": "POST"
                 },
-                "headers": {
-                "Authorization": "Bearer token123"
+                "data": {
+                    "iterationMode": "random",
+                    "headers": [
+                        {
+                            "Content-Type": "application/json"
+                        },
+                        {
+                            "Content-Type": "application/json"
+                        }
+                    ],
+                    "body": [
+                        {
+                            "hello": "world"
+                        },
+                        {
+                            "hello1": "world1"
+                        }
+                    ]
                 }
-            }
             }
         },
         "thresholds": {
@@ -143,3 +166,28 @@ curl --location 'http://localhost:3000/loadTest/run' \
   }
 }
 ```
+
+## Grafana
+1. http://localhost:4000에 접속한 이후 Data source로 InfluxDB를 추가해줍니다. 
+
+![img.png](docs/grafana_influxdb_1.png)
+
+2. 현재 데모 docker-compose.yaml에서는 influxDB와 grafana가 같은 네트워크로 묶여있습니다. 따라서 http://influxdb:8086으로 연결해줍니다.
+
+![img.png](docs/grafana_influxdb_2.png)
+
+3. docker-compose.yaml에 명시된 database와 user, password를 입력해줍니다.
+
+![img.png](docs/grafana_influxdb_3.png)
+
+4. K6 공식 대시보드인 2587를 임포트합니다. 그리고 Load를 누릅니다.
+
+![img.png](docs/grafana_influxdb_4.png)
+
+5. Data source로 아까 만든 influxDB를 연결해줍니다.
+
+![img.png](docs/grafana_influxdb_5.png)
+
+6. 해당 대시보드에서 부하 테스트를 모니터링 합니다.
+
+![img.png](docs/grafana_influxdb_6.png)

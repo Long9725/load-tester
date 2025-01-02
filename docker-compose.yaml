@@ -1,4 +1,4 @@
-version: '3'
+version: '3.7'
 services:
   influxdb:
     image: influxdb:1.11.8
@@ -15,6 +15,22 @@ services:
       - influxdb-data:/var/lib/influxdb
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "4000:3000"
+    depends_on:
+      - influxdb
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
 volumes:
   influxdb-data:
+    driver: local
+  grafana-data:
     driver: local
