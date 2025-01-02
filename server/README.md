@@ -4,27 +4,30 @@
 K6_OUTPUT_TYPE은 NONE / JSON / CSV / INFLUX_DB 를 지원합니다.
 
 ```dotenv
+LOAD_TEST_ENTITY_DIR=dist/domains/load-test/domain/entity
 K6_SCRIPT_DIR=dist/assets/load-test/applications/out/k6/config
 K6_OUTPUT_PATH=/dist/assets/load-test/outputs
 K6_DOCKER_IMAGE=grafana/k6
-K6_OUTPUT_TYPE=json
+K6_OUTPUT_TYPE=INFLUXDB
+K6_CONTAINER_ENTITY_DIR=/entity
 K6_CONTAINER_SCRIPT_DIR=/scripts
-K6_CONTAINER_OUTPUT_PATH=/scripts/outputs
+K6_CONTAINER_OUTPUT_PATH=http://host.docker.internal:8086/k6_db
+K6_INFLUX_DB_URL=http://host.docker.internal:8086/k6_db
 ```
 ## OUTPUT 설정
 ### JSON
 ```dotenv
-K6_OUTPUT_TYPE=json
+K6_OUTPUT_TYPE=JSON
 ```
 
 ## CSV
 ```dotenv
-K6_OUTPUT_TYPE=csv
+K6_OUTPUT_TYPE=CSV
 ```
 
 ## INFLUXDB
 ```dotenv
-K6_OUTPUT_TYPE=influxdb
+K6_OUTPUT_TYPE=INFLUXDB
 K6_INFLUX_DB_URL=http://host.docker.internal:8086/k6_db
 ```
 

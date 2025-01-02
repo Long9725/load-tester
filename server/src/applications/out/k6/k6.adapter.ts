@@ -8,6 +8,7 @@ import {
   K6Config,
   K6OutputType,
 } from '@src/domains/load-test/domain/service/loadTest.config';
+import * as process from "node:process";
 
 @Injectable()
 export class K6LoadTestAdapter implements LoadTestOutAdapter {
@@ -17,29 +18,38 @@ export class K6LoadTestAdapter implements LoadTestOutAdapter {
 
   runTest(options: LoadTestOption): Promise<string> {
     return new Promise((resolve, reject) => {
+      const entityDirOnHost = path.resolve(
+        process.cwd(),
+        this.config.LOAD_TEST_ENTITY_DIR
+      );
       const scriptDirOnHost = path.resolve(
         process.cwd(),
         this.config.SCRIPT_DIR,
       );
-
-      // 1. 임시 JSON 파일 생성
-      const optionsFileName = `options-${Date.now()}.json`;
-      const optionsFilePath = path.join(scriptDirOnHost, optionsFileName);
-      fs.writeFileSync(optionsFilePath, options.getConfigJson(), 'utf-8');
-      this.logger.log(`Temporary options file created`);
-
-      // 2. Docker 실행 명령어 구성
+      const scriptFileName = '/run.script.js';
+      const optionsFileName = options.createConfigJsonFile(scriptDirOnHost);
+      const dataFileName = options.createScenariosDataFile(scriptDirOnHost);
+      const optionsFilePath = `${scriptDirOnHost}/${optionsFileName}`;
+      const dataFilePath = `${scriptDirOnHost}/${dataFileName}`;
       const args = [
         'run',
         '--rm',
         '-v',
-        `${scriptDirOnHost}:${this.config.CONTAINER_SCRIPT_DIR}`, // 볼륨 마운트
+        `${scriptDirOnHost}/${scriptFileName}:${this.config.CONTAINER_SCRIPT_DIR}/${scriptFileName}`,
+        '-v',
+        `${optionsFilePath}:${this.config.CONTAINER_SCRIPT_DIR}/${optionsFileName}`,
+        '-v',
+        `${dataFilePath}:${this.config.CONTAINER_SCRIPT_DIR}/${dataFileName}`,
+        '-v',
+        `${entityDirOnHost}:${this.config.CONTAINER_SCRIPT_DIR}/entity`,
         ...this.configOutputEnv(),
         '-e',
         `SCENARIOS_ENV=${JSON.stringify(options.getScenariosEnv())}`,
+        '-e',
+        `DATA_FILE_PATH=${this.config.CONTAINER_SCRIPT_DIR}/${dataFileName}`,
         this.config.DOCKER_IMAGE, // Docker 이미지
         'run', // k6 실행 명령어
-        `${this.config.CONTAINER_SCRIPT_DIR}/run.script.js`,
+        `${this.config.CONTAINER_SCRIPT_DIR}/${scriptFileName}`,
         '--config',
         `${this.config.CONTAINER_SCRIPT_DIR}/${optionsFileName}`, // JSON 옵션 파일 전달
         ...this.configOutputPath(),
@@ -63,11 +73,12 @@ export class K6LoadTestAdapter implements LoadTestOutAdapter {
       child.on('close', (code) => {
         // 4. 테스트 종료 후 임시 파일 삭제
         try {
-          // fs.unlinkSync(optionsFilePath);
-          this.logger.log(`Temporary options file deleted: ${optionsFilePath}`);
+          fs.unlinkSync(optionsFilePath);
+          fs.unlinkSync(dataFilePath);
+          this.logger.log(`File deleted`);
         } catch (error) {
           this.logger.error(
-            `Failed to delete temporary options file: ${error.message}`,
+            `Failed to delete file: ${error.message}`,
           );
         }
 

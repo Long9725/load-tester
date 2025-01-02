@@ -14,13 +14,16 @@ export class K6Config implements LoadTestConfig {
   public static readonly DOCKER_COMMAND: string = 'docker';
 
   private readonly logger = new Logger(K6Config.name);
+  public readonly LOAD_TEST_ENTITY_DIR: string;
   public readonly SCRIPT_DIR: string;
   public readonly OUTPUT_PATH: string;
   public readonly OUTPUT_TYPE: K6OutputType;
   public readonly CONTAINER_SCRIPT_DIR: string;
   public readonly CONTAINER_OUTPUT_PATH: string;
   public readonly DOCKER_IMAGE: string;
+
   constructor(private readonly configService: ConfigService) {
+    this.LOAD_TEST_ENTITY_DIR = this.configService.get<string>('LOAD_TEST_ENTITY_DIR');
     this.SCRIPT_DIR = this.configService.get<string>('K6_SCRIPT_DIR');
     this.OUTPUT_PATH = this.configService.get<string>('K6_OUTPUT_PATH');
     this.OUTPUT_TYPE =  K6OutputType[this.configService.get<string>('K6_OUTPUT_TYPE') as keyof typeof K6OutputType] || K6OutputType.NONE;

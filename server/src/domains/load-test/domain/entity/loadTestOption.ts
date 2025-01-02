@@ -1,5 +1,8 @@
-import { VirtualUserExecutor } from '@load-tester/domains/load-test/domain/entity/virtualUserExecutor';
-import { URL } from 'url';
+import { VirtualUserExecutor } from "@load-tester/domains/load-test/domain/entity/virtualUserExecutor";
+import { URL } from "url";
+import { IterationMode } from "@src/domains/load-test/domain/entity/loadTestIterator";
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * {
@@ -31,8 +34,14 @@ export interface ScenarioStage {
 export interface ScenarioEnvironment {
   url: URL; // 호출할 URL (예: 'http://localhost:3000/api/login')
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; // HTTP 메서드 제한
-  body?: string; // 요청 바디 (예: JSON 문자열)
-  headers?: Record<string, string>; // 헤더 (키-값 쌍)
+  body?: string[]; // 요청 바디 (예: JSON 문자열)
+  headers?: Record<string, string>[]; // 헤더 (키-값 쌍)
+}
+
+export interface ScenarioData {
+  iterationMode: IterationMode;
+  headers: Record<string, string>[];
+  body: Record<string, any>[];
 }
 
 export interface ScenarioConfig {
@@ -42,7 +51,8 @@ export interface ScenarioConfig {
   startVUs?: number;
   stages?: ScenarioStage[];
   startTime?: string; // startTime: 이 시나리오를 언제부터 시작할지 (초 단위 시점); "15s" → 시나리오_login 이 끝나는 시점(15초 후)에 이 시나리오를 시작
-  env: ScenarioEnvironment;// exec: 부하 테스트 시나리오 실행 시 사용할 함수명
+  env: ScenarioEnvironment;
+  data?: ScenarioData;
 }
 
 export type Scenarios = Record<string, ScenarioConfig>;
@@ -53,6 +63,9 @@ export interface LoadTestOption {
   scenarios: Scenarios;
   getConfigJson(): string;
   getScenariosEnv(): Record<string, ScenarioEnvironment>;
+  getScenariosData(): Record<string, ScenarioData>;
+  createConfigJsonFile(directory: string): string;
+  createScenariosDataFile(directory: string): string;
 }
 
 /**
@@ -96,29 +109,67 @@ export class K6Option implements LoadTestOption {
 
   // 시나리오 정보를 포함하지만 env 필드는 제외하고 반환
   getConfigJson(): string {
-    const configWithoutEnv = JSON.parse(JSON.stringify(this)) ;
+    const configWithoutEnv = JSON.parse(JSON.stringify(this));
 
     // 각 시나리오에서 env 필드 제외
-    Object.keys(configWithoutEnv.scenarios).forEach(scenarioName => {
+    Object.keys(configWithoutEnv.scenarios).forEach((scenarioName) => {
       const scenario = configWithoutEnv.scenarios[scenarioName];
+      if (scenario.iterationMode) {
+        scenario.iterationMode = undefined;
+      }
       if (scenario.env) {
         // env를 제외한 시나리오 객체만 유지
         scenario.env = undefined;
+      }
+      if (scenario.data) {
+        scenario.data = undefined;
       }
     });
 
     return JSON.stringify(configWithoutEnv); // JSON 형태로 반환
   }
 
-  // 시나리오 이름과 env를 매핑하여 JSON으로 반환
   getScenariosEnv(): Record<string, ScenarioEnvironment> {
-    const envMapping: Record<string, ScenarioEnvironment> = {};
+    const mapping: Record<string, ScenarioEnvironment> = {};
 
-    // 각 시나리오의 env를 추출하여 매핑
-    Object.keys(this.scenarios).forEach(scenarioName => {
-      envMapping[scenarioName] = this.scenarios[scenarioName].env;
+    Object.keys(this.scenarios).forEach((scenarioName) => {
+      mapping[scenarioName] = this.scenarios[scenarioName].env;
     });
 
-    return envMapping; // JSON 형태로 반환
+    return mapping;
+  }
+
+  getScenariosData(): Record<string, ScenarioData> {
+    const mapping: Record<string, ScenarioData> = {};
+
+    Object.keys(this.scenarios).forEach((scenarioName) => {
+      mapping[scenarioName] = this.scenarios[scenarioName].data;
+    });
+
+    return mapping;
+  }
+
+  createConfigJsonFile(directory: string): string {
+    const fileName = `config-${Date.now()}.json`;
+    this.createFile(directory, fileName, this.getConfigJson());
+    return fileName;
+  }
+
+  createScenariosDataFile(directory: string): string {
+    console.log(this.getScenariosData());
+    console.log(JSON.stringify(this.getScenariosData()));
+    const fileName = `data-${Date.now()}.json`;
+    this.createFile(directory, fileName, JSON.stringify(this.getScenariosData()));
+    return fileName;
+  }
+
+  private createFile(directory: string, fileName: string, content: string) {
+    const scriptDirOnHost = path.resolve(process.cwd(), directory);
+    const filePath = path.join(scriptDirOnHost, fileName);
+    fs.writeFileSync(
+      filePath,
+      content,
+      'utf-8',
+    );
   }
 }

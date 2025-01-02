@@ -1,52 +1,11 @@
-import http from 'k6/http';
-import exec from 'k6/execution';
-import { check } from 'k6';
+import { check } from "k6";
+import http from "k6/http";
+import exec from "k6/execution";
+import { SharedArray } from "k6/data";
+import { ScenarioHandler } from "/scripts/entity/loadTestIterator.js";
 
-// K6 옵션: 시나리오별 메서드, URL, 바디 포함
-export let scenariosEnv = JSON.parse(__ENV.SCENARIOS_ENV || '{}');
-// export let options = {
-//   scenarios: {
-//     loginScenario: {
-//       executor: 'constant-vus',
-//       vus: 5,
-//       duration: '15s',
-//       exec: 'dynamicRequest', // 실행할 함수 이름
-//       env: JSON.stringify({
-//         url: 'http://localhost:3000/api/login', // 호출할 URL
-//         method: 'POST', // HTTP 메서드
-//         body: JSON.stringify({ username: 'test', password: '1234' }), // 요청 바디
-//         headers: { 'Content-Type': 'application/json' }, // 헤더
-//       }),
-//     },
-//     dataFetchScenario: {
-//       executor: 'constant-vus',
-//       vus: 5,
-//       duration: '15s',
-//       exec: 'dynamicRequest', // 실행할 함수 이름
-//       env: JSON.stringify({
-//         url: 'http://localhost:3000/api/data', // 호출할 URL
-//         method: 'GET', // HTTP 메서드
-//         headers: { 'Authorization': 'Bearer token123' }, // 헤더
-//       }),
-//     },
-//   },
-//   thresholds: {
-//     'http_req_duration': ['p(95)<200'], // 응답 시간 95%가 200ms 미만
-//   },
-// };
-// export let scenariosEnv = {
-//   loginScenario: {
-//     url: 'http://localhost:3000/api/login', // 호출할 URL
-//     method: 'POST', // HTTP 메서드
-//     body: JSON.stringify({ username: 'test', password: '1234' }), // 요청 바디
-//     headers: { 'Content-Type': 'application/json' }, // 헤더
-//   },
-//   dataFetchScenario: {
-//     url: 'http://localhost:3000/api/data', // 호출할 URL
-//     method: 'GET', // HTTP 메서드
-//     headers: { Authorization: 'Bearer token123' }, // 헤더
-//   },
-// };
+const jsonData = JSON.parse(open(__ENV.DATA_FILE_PATH));
+export let scenariosEnv = JSON.parse(__ENV.SCENARIOS_ENV || "{}");
 
 // 시나리오별 동적 요청 실행
 export default function dynamicRequest() {
@@ -60,36 +19,40 @@ export default function dynamicRequest() {
 
   // 시나리오별 설정 파싱
   const url = currentEnv.url;
-  const method = currentEnv.method || 'GET';
+  const method = currentEnv.method || "GET";
   const expectedStatusCode = currentEnv.statusCode || 200;
-
   // 요청 실행
-  const res = configureRequest(currentEnv);
+  const res = configureRequest(currentEnv, new ScenarioHandler(
+    jsonData[currentScenario.name].iterationMode,
+    jsonData[currentScenario.name].headers,
+    jsonData[currentScenario.name].body
+  ));
 
   // 응답 상태 코드 체크
   check(res, {
     [`${method} ${url}: status expected ${expectedStatusCode}`]: (r) =>
-      r.status === expectedStatusCode,
+      r.status === expectedStatusCode
   });
 }
 
-function configureRequest(env) {
+function configureRequest(env, handler) {
   const url = env.url;
-  const method = env.method || 'GET';
-  const body = env.body || null;
-  const headers = env.headers || {};
+  const method = env.method || "GET";
+  const body = handler.getNextBody();
+  const headers = handler.getNextHeaders();
 
   // 메서드에 따라 요청 실행
+
   switch (method.toUpperCase()) {
-    case 'GET':
+    case "GET":
       return http.get(url, { headers });
-    case 'POST':
+    case "POST":
       return http.post(url, body, { headers });
-    case 'PUT':
+    case "PUT":
       return http.put(url, body, { headers });
-    case 'PATCH':
+    case "PATCH":
       return http.patch(url, body, { headers });
-    case 'DELETE':
+    case "DELETE":
       return http.del(url, body, { headers });
     default:
       throw new Error(`Unsupported HTTP method: ${method}`);
